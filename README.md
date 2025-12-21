@@ -47,7 +47,7 @@ PrivyShare/
 │   └── server.js
 │
 └── README.md
-
+```
 ## 🛠 Requirements
 
 ### General
@@ -71,19 +71,19 @@ PrivyShare/
 ```bash
 git clone https://github.com/githubsantu/privyshare.git
 cd privyshare
-
+```
 ### 2️⃣ Setup Signaling Server
 
 ```bash
 cd server
 npm install
 node server.js
-
+```
 Server will run at:
 
 ```bash
 http://localhost:5000
-
+```
 
 ---
 
@@ -93,12 +93,12 @@ http://localhost:5000
 cd client
 npm install
 npm run dev
-
+```
 Client will run at:
 
 ```bash
 http://localhost:5173
-
+```
 ## 🖥 Build Desktop App (Tauri – Windows)
 
 ### 1️⃣ Install Rust
@@ -109,12 +109,12 @@ https://www.rust-lang.org/tools/install
 ```bash
 cd client
 npm run tauri build
-
+```
 Installer output path:
 
 ```txt
 client/src-tauri/target/release/bundle/
-
+```
 ## 🌐 Signaling Server (Production)
 
 PrivyShare uses a lightweight **Socket.IO signaling server**.
