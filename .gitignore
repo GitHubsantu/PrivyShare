@@ -1,0 +1,13 @@
+# Backup/Generated Folders
+bak/
+dist/
+
+# Dependencies
+node_modules/
+
+# Tauri/Rust build artifacts
+target/
+
+# Environment variables (Security risk if committed)
+.env
+.env.local
