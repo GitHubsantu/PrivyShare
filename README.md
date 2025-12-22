@@ -140,7 +140,7 @@ You can deploy it on:
 
 ---
 
-## 📦 Release Notes (v0.1.1)
+## 📦 Release Notes (v1.0.1)
 
 - Initial release
 - Fully encrypted P2P file transfer
