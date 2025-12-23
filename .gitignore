@@ -1,6 +1,7 @@
 # Backup/Generated Folders
 bak/
 dist/
+gen/
 
 # Dependencies
 node_modules/
@@ -11,3 +12,4 @@ target/
 # Environment variables (Security risk if committed)
 .env
 .env.local
+.vscode
