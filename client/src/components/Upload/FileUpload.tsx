@@ -9,8 +9,10 @@ import toast from "react-hot-toast";
 import LinkModal from "../LinkModal";
 import { io, Socket } from "socket.io-client";
 import { encryptFile } from "../utils/encryptFile";
+import { useCameraGuard } from "../hooks/useCameraGuard";
 
 export default function FileUpload() {
+  useCameraGuard();
   const [file, setFile] = useState<File | null>(null);
   const [shareLink, setShareLink] = useState("");
   const [showPopup, setShowPopup] = useState(false);
@@ -171,7 +173,33 @@ export default function FileUpload() {
       const roomId = crypto.randomUUID().substring(0, 8);
 
       const pc = new RTCPeerConnection({
-        iceServers: []
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
+          {
+            urls: "stun:stun.relay.metered.ca:80",
+          },
+          {
+            urls: "turn:standard.relay.metered.ca:80",
+            username: "527125623c47f6480a242cfa",
+            credential: "lsrgIoPkMAEC+mWI",
+          },
+          {
+            urls: "turn:standard.relay.metered.ca:80?transport=tcp",
+            username: "527125623c47f6480a242cfa",
+            credential: "lsrgIoPkMAEC+mWI",
+          },
+          {
+            urls: "turn:standard.relay.metered.ca:443",
+            username: "527125623c47f6480a242cfa",
+            credential: "lsrgIoPkMAEC+mWI",
+          },
+          {
+            urls: "turns:standard.relay.metered.ca:443?transport=tcp",
+            username: "527125623c47f6480a242cfa",
+            credential: "lsrgIoPkMAEC+mWI",
+          }
+        ]
       });
       pcRef.current = pc;
 
@@ -184,6 +212,7 @@ export default function FileUpload() {
       channel.bufferedAmountLowThreshold = isFirefox ? 32 * 1024 : 256 * 1024;
 
       channel.onopen = async () => {
+        setShowPopup(false);
         console.log("✅ Channel opened - starting transfer");
         toast.dismiss();
         toast.success("Connected! Sending file...");
@@ -191,6 +220,7 @@ export default function FileUpload() {
       };
 
       channel.onerror = (error) => {
+        setShowPopup(false);
         console.error("Channel error:", error);
         toast.error("Data channel error or Cancelled");
         setUploadProgress(0);

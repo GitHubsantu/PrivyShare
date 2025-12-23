@@ -4,8 +4,20 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { io, Socket } from "socket.io-client";
+import { isTauri } from "@tauri-apps/api/core";
+import { platform } from "@tauri-apps/plugin-os";
+import { useCameraGuard } from "../hooks/useCameraGuard";
+
+function isAndroidTauri() {
+  return isTauri() && /Android/i.test(navigator.userAgent);
+}
+
+function isDesktopTauri() {
+  return isTauri() && !/Android/i.test(navigator.userAgent);
+}
 
 export default function FileDownload() {
+  useCameraGuard();
   const [searchParams] = useSearchParams();
   const key = searchParams.get("key");
   const roomId = window.location.pathname.split("/").pop();
@@ -80,50 +92,133 @@ export default function FileDownload() {
       };
 
   const finalizeFile = async () => {
-    if (isProcessingRef.current) return;
-    isProcessingRef.current = true;
+  if (isProcessingRef.current) return;
+  isProcessingRef.current = true;
 
-    try {
-      setStatus("decrypting");
-      setProgress(100);
-      toast.loading("Decrypting...");
+  const decryptToastId = toast.loading("Decrypting...");
+  try {
+    setStatus("decrypting");
+    setProgress(100);
 
-      const combined = new Uint8Array(receivedRef.current);
-      let offset = 0;
+    const combined = new Uint8Array(receivedRef.current);
+    let offset = 0;
 
-      for (const chunk of chunksRef.current) {
-        combined.set(chunk, offset);
-        offset += chunk.length;
-      }
-
-      console.log(`Combined: ${combined.byteLength} bytes`);
-
-      if (combined.byteLength !== totalSizeRef.current) {
-        throw new Error(`Size mismatch: ${combined.byteLength} vs ${totalSizeRef.current}`);
-      }
-
-      const decrypted = await decryptFile(combined.buffer, key!);
-      const blob = new Blob([decrypted]);
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = originalNameRef.current || filenameRef.current.replace(/\.enc$/, "") || "file";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast.dismiss();
-      setStatus("done");
-      toast.success("Downloaded!");
-    } catch (err) {
-      console.error("Finalize error:", err);
-      toast.dismiss();
-      toast.error("Decryption failed");
-      setStatus("error");
+    for (const chunk of chunksRef.current) {
+      combined.set(chunk, offset);
+      offset += chunk.length;
     }
-  };
+
+    console.log(`Combined: ${combined.byteLength} bytes`);
+
+    if (combined.byteLength !== totalSizeRef.current) {
+      throw new Error(`Size mismatch: ${combined.byteLength} vs ${totalSizeRef.current}`);
+    }
+
+    // Add more detailed logging
+    console.log("🔓 Starting decryption...");
+    const decrypted = await decryptFile(combined.buffer, key!);
+    console.log("✅ Decryption successful, size:", decrypted.byteLength);
+
+    const fileName =
+      originalNameRef.current ||
+      filenameRef.current.replace(/\.enc$/, "") ||
+      "file";
+
+    if (isTauri()) {
+      const currentPlatform = await platform();
+
+      /* ---------- ANDROID ---------- */
+      if (currentPlatform === "android") {
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const { writeFile } = await import("@tauri-apps/plugin-fs");
+
+  const filePath = await save({
+    defaultPath: fileName,
+    title: "Save decrypted file",
+  });
+
+  if (!filePath) {
+    toast.dismiss(decryptToastId);
+    setStatus("cancelled");
+    toast.error("Save cancelled");
+    return;
+  }
+
+  await writeFile(filePath, new Uint8Array(decrypted));
+  toast.dismiss(decryptToastId);
+  toast.success("File saved");
+  setStatus("done");
+  return;
+}
+      /* ---------- DESKTOP ---------- */
+      const { writeFile, mkdir, BaseDirectory } =
+        await import("@tauri-apps/plugin-fs");
+
+      const folder = "PrivyShare";
+      await mkdir(folder, {
+        baseDir: BaseDirectory.Download,
+        recursive: true,
+      });
+
+      await writeFile(
+        `${folder}/${fileName}`,
+        new Uint8Array(decrypted),
+        { baseDir: BaseDirectory.Download }
+      );
+      toast.dismiss(decryptToastId);
+      toast.success("Saved to Downloads/PrivyShare");
+      setStatus("done");
+      
+      // Clear memory
+      chunksRef.current = [];
+      return;
+    }
+
+    /* =========================
+      🌐 WEB (BROWSER)
+      ========================= */
+    const blob = new Blob([decrypted]);
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.dismiss(decryptToastId);
+    toast.success("Download started");
+    setStatus("done");
+    
+    // Clear memory
+    chunksRef.current = [];
+    
+  } catch (err) {
+    console.error("❌ Finalize error:", err);
+    console.error("Error details:", {
+      message: (err as Error).message,
+      stack: (err as Error).stack,
+      name: (err as Error).name
+    });
+    
+    toast.dismiss(decryptToastId);
+    
+    // More specific error messages
+    if ((err as Error).message?.includes("Size mismatch")) {
+      toast.error("File transfer incomplete");
+    } else if ((err as Error).message?.includes("Decryption failed")) {
+      toast.error("Decryption failed - check encryption key");
+    } else if ((err as Error).message?.includes("write")) {
+      toast.error("Failed to save file - check permissions");
+    } else {
+      toast.error("Error: " + (err as Error).message);
+    }
+    
+    setStatus("error");
+    isProcessingRef.current = false; // Reset flag on error
+  }
+};
 
   useEffect(() => {
     if (!roomId || !key) {
@@ -143,8 +238,34 @@ export default function FileDownload() {
     socketRef.current = socket;
 
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-    });
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
+          {
+            urls: "stun:stun.relay.metered.ca:80",
+          },
+          {
+            urls: "turn:standard.relay.metered.ca:80",
+            username: "527125623c47f6480a242cfa",
+            credential: "lsrgIoPkMAEC+mWI",
+          },
+          {
+            urls: "turn:standard.relay.metered.ca:80?transport=tcp",
+            username: "527125623c47f6480a242cfa",
+            credential: "lsrgIoPkMAEC+mWI",
+          },
+          {
+            urls: "turn:standard.relay.metered.ca:443",
+            username: "527125623c47f6480a242cfa",
+            credential: "lsrgIoPkMAEC+mWI",
+          },
+          {
+            urls: "turns:standard.relay.metered.ca:443?transport=tcp",
+            username: "527125623c47f6480a242cfa",
+            credential: "lsrgIoPkMAEC+mWI",
+          }
+        ]
+      });
     pcRef.current = pc;
 
     socket.on("connect", () => {
