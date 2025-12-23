@@ -17,6 +17,10 @@ and are **never stored on any server**.
 - 🔗 Secure shareable links
 - 🖥 Desktop app powered by Tauri (Windows)
 - 🌙 Modern UI (Tailwind CSS + Framer Motion)
+- 🧑‍💻 Android app (APK supported)
+- 📱 QR code scanner added
+- 📐 UI/UX improvements
+- 🛠 Various bug fixes
 
 ---
 
@@ -41,7 +45,7 @@ PrivyShare/
 ├── client/               # React + Vite frontend
 │   ├── src/
 │   ├── dist/             # Built frontend
-│   └── src-tauri/        # Tauri desktop app
+│   └── src-tauri/        # Tauri desktop app & Android app
 │
 ├── server/               # Signaling server (Socket.IO)
 │   └── server.js
@@ -62,6 +66,17 @@ PrivyShare/
   - MSVC v143
   - Windows 10 / 11 SDK
 
+### Android (Tauri – Android)
+- Android Studio (latest)
+- Android SDK
+- Android NDK
+- Java Development Kit (JDK 17)
+- Rust (stable)
+- Node.js (LTS)
+#### Android Studio → SDK Manager
+- Android SDK Platform 33+
+- Android SDK Build-Tools
+- Android Emulator (optional)
 ---
 
 ## 🚀 Local Setup (Development)
@@ -115,6 +130,49 @@ Installer output path:
 ```txt
 client/src-tauri/target/release/bundle/
 ```
+## 📱 Build Android App (Tauri – Android)
+
+### 1️⃣ Prerequisites
+- Android Studio (latest)
+- Android SDK & NDK
+- JDK 17
+- Rust (stable)
+- Node.js (LTS)
+
+### 2️⃣ Install Rust Android Targets
+```bash
+rustup target add aarch64-linux-android
+rustup target add armv7-linux-androideabi
+```
+(Optional – emulator support)
+```bash
+rustup target add x86_64-linux-android
+```
+
+### 3️⃣ Setup Android SDK
+Open Android Studio → SDK Manager and install:
+- Android SDK Platform 33+
+- Android SDK Build-Tools
+- Android NDK
+- Platform Tools
+Enable USB Debugging on your Android device.
+
+### 4️⃣ Build Android APK
+```bash
+cd client
+npm install
+npm run tauri android build
+```
+
+### 5️⃣ APK Output Path
+```txt
+client/src-tauri/gen/android/app/build/outputs/apk/
+```
+
+### 6️⃣ Run on Device (Debug)
+```bash
+npm run tauri android dev
+```
 ## 🌐 Signaling Server (Production)
 
 PrivyShare uses a lightweight **Socket.IO signaling server**.
@@ -140,7 +198,7 @@ You can deploy it on:
 
 ---
 
-## 📦 Release Notes (v1.0.1)
+## 📦 Release Notes [(v1.0.1)](https://github.com/GitHubsantu/PrivyShare/releases/tag/v1.0.1)
 
 - Initial release
 - Fully encrypted P2P file transfer
@@ -148,6 +206,18 @@ You can deploy it on:
 - Real-time progress & speed indicator
 - Clean modern UI
 - Zero server-side storage
+
+---
+
+## 📦 Release Notes [(v2.0.0)](https://github.com/GitHubsantu/PrivyShare/releases/tag/v2.0.0)
+
+- Android app support (Tauri – Android)
+- QR code scanner added
+- Receive files via QR code
+- Camera auto-stop on back navigation and page change
+- Mobile-optimized and updated UI
+- UI fixes and stability improvements
+- Minor bug fixes
 
 ---
 
